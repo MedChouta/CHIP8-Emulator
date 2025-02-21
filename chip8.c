@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <errno.h>
+#include <unistd.h>
 #include "chip8.h"
 #include "instructions.h"
 
@@ -18,33 +19,28 @@ void init_display(char display[64][32]){
     }
 }
 
-void push(uint16_t element, uint16_t stack[]){
+void push(CHIP8 *c8, uint16_t element){
+    uint8_t SP = c8->SP;
 
-    for(int i = 0; i < STACK_SIZE; i++){
+    if(c8->stack[0] != 0)
+        c8->SP++;
 
-        if(stack[i] == 0){
-
-            stack[i] = element;
-
-        }
-    }
+    c8->stack[SP] = element;
 
 }
 
-uint16_t pop(uint16_t stack[]){
+uint16_t pop(CHIP8 *c8){
+
+    uint8_t SP = c8->SP;
 
     uint16_t el;
+    el = c8->stack[SP];
+    c8->stack[SP] = 0;
 
-    for(int i = 0; i < STACK_SIZE; i++){
+ //   printf("Poping %X at %d\t $PC: %X\n", el,SP, c8->PC);
 
-        if(stack[i] == 0){
-            el = stack[i - 1];
-            stack[i - 1] = 0;
-        }
-        else if(stack[i] != 0 && i == STACK_SIZE - 1){
-            el = stack[i];
-            stack[i] = 0;
-        }
+    if (SP > 0){
+        c8->SP--;
     }
 
     return el;
@@ -54,8 +50,8 @@ uint16_t pop(uint16_t stack[]){
 
 uint16_t Fetch(CHIP8 *c8){
 
+   // printf("PC: %X\n", c8->PC);
     uint16_t PC = c8->PC;
-
     uint16_t instruction = ((uint16_t)c8->memory[PC] << 8)  + (uint16_t)c8->memory[PC + 1];
 
     c8->PC+=2;
@@ -113,16 +109,16 @@ void Decode(CHIP8 *c8, uint16_t instruction, char **assembly, size_t size, int e
             switch(sliced[3]){
                 case(0x0):
                 if(sliced[2] == 0xE){
+                    if (enable)
+                        Clear(c8);
                     add_assembly(disassembly, size, "CLS");
                 }
                 else
                     add_assembly(disassembly, size, "SYS 0x%X%X%X", sliced[1], sliced[2], sliced[3]);
-                if (enable)
-                    Clear(c8);
                 break;
                 case(0xE):
-             //   if (enable)
-                 //   Return(c8);
+                if (enable)
+                    Return(c8);
                 add_assembly(disassembly, size, "RET");
                 break;
                 default: //0NNN (Machine language routine. NOT implemented)
@@ -136,23 +132,23 @@ void Decode(CHIP8 *c8, uint16_t instruction, char **assembly, size_t size, int e
         }
         break;
         case(0x2): //2nnn
-       // if (enable)
-       //     Jump(c8, data, 0, SUBROUTINE);
+        if (enable)
+            Jump(c8, data, 0, SUBROUTINE);
         add_assembly(disassembly, size, "CALL 0x%X%X%X", sliced[1], sliced[2], sliced[3]);
         break;
         case(0x3): //3xkk
-    //    if (enable)
-        //    Jump(c8, data, 0, JP_3);
+        if (enable)
+            Jump(c8, data, 0, JP_3);
         add_assembly(disassembly, size, "SE V%X, 0x%X%X", sliced[1], sliced[2], sliced[3]);
         break;
         case(0x4): //4xkk
-      //  if (enable)
-       //     Jump(c8, data, 0, JP_4);
+        if (enable)
+            Jump(c8, data, 0, JP_4);
         add_assembly(disassembly, size, "SNE V%X, 0x%X%X", sliced[1], sliced[2], sliced[3]);
         break;
         case(0x5): //5xy0
-    //    if (enable)
-        //    Jump(c8, data, 0, JP_5);
+        if (enable)
+            Jump(c8, data, 0, JP_5);
         add_assembly(disassembly, size, "SE V%X, V%X", sliced[1], sliced[2]);
         break;
         case(0x6): //6XXX
@@ -168,45 +164,45 @@ void Decode(CHIP8 *c8, uint16_t instruction, char **assembly, size_t size, int e
         case(0x8):
             switch(sliced[3]){
                 case(0x0):
-          //      if(enable)
-         //           Set(c8, data, V_V_MODE);
+                if(enable)
+                    Set(c8, data, V_V_MODE);
                 add_assembly(disassembly, size, "LD V%X, V%X", sliced[1], sliced[2]);
                 break;
                 case(0x1):
-             //   c8->V[X] = OR(c8->V[X], c8->V[Y]);
+                c8->V[X] = OR(c8->V[X], c8->V[Y]);
                 add_assembly(disassembly, size, "OR V%X, V%X", sliced[1], sliced[2]);
                 break;
                 case(0x2):
-            //    c8->V[X] = AND(c8->V[X], c8->V[Y]);
+                c8->V[X] = AND(c8->V[X], c8->V[Y]);
                 add_assembly(disassembly, size, "AND V%X, V%X", sliced[1], sliced[2]);
                 break;
                 case(0x3):
-              //  c8->V[X] = XOR(c8->V[X], c8->V[Y]);
+                c8->V[X] = XOR(c8->V[X], c8->V[Y]);
                 add_assembly(disassembly, size, "XOR V%X, V%X", sliced[1], sliced[2]);
                 break;
                 case(0x4):
-             //   if(enable)
-                 //   Add(c8, data, CARRY_MODE);
+                if(enable)
+                    Add(c8, data, CARRY_MODE);
                 add_assembly(disassembly, size, "ADD V%X, V%X", sliced[1], sliced[2]);
                 break;
                 case(0x5):
-               // if(enable)
-              //      Sub(c8, data, SUB_1);
+                if(enable)
+                    Sub(c8, data, SUB_1);
                 add_assembly(disassembly, size, "SUB V%X, V%X", sliced[1], sliced[2]);
                 break;
                 case(0x6):
-             //   if(enable)
-            //        Shift(c8, data, RIGHT);
+                if(enable)
+                    Shift(c8, data, RIGHT);
                 add_assembly(disassembly, size, "SHR V%X, {, V%X}", sliced[1], sliced[2]);
                 break;
                 case(0x7):
-             //   if(enable)
-            //        Sub(c8, data, SUB_2);
+                if(enable)
+                    Sub(c8, data, SUB_2);
                 add_assembly(disassembly, size, "SUBN V%X, V%X", sliced[1], sliced[2]);
                 break;
                 case(0xE):
-             //   if(enable)
-              //      Shift(c8, data, LEFT);
+                if(enable)
+                    Shift(c8, data, LEFT);
                 add_assembly(disassembly, size, "SHL V%X, {, V%X}", sliced[1], sliced[2]);
                 break;
                 default:
@@ -214,8 +210,8 @@ void Decode(CHIP8 *c8, uint16_t instruction, char **assembly, size_t size, int e
             }
         break;
         case(0x9):
-        //if (enable)
-       //     Jump(c8, data, 0, JP_9);
+        if (enable)
+            Jump(c8, data, 0, JP_9);
         add_assembly(disassembly, size, "SNE V%X, V%X", sliced[1], sliced[2]);
         break;
         case(0xA):
@@ -224,13 +220,13 @@ void Decode(CHIP8 *c8, uint16_t instruction, char **assembly, size_t size, int e
         add_assembly(disassembly, size, "LD I, 0x%X%X%X", sliced[1], sliced[2], sliced[3]);
         break;
         case(0xB):
-      //  if (enable)
-        //    Jump(c8, data, c8->V[X], JP_1);
+        if (enable)
+            Jump(c8, data, c8->V[X], JP_1);
         add_assembly(disassembly, size, "JP V0, 0x%X%X%X", sliced[1], sliced[2], sliced[3]);
         break;
         case(0xC):
-        //if (enable)
-          //  Random(c8, data);
+        if (enable)
+            Random(c8, data);
         add_assembly(disassembly, size, "RND V%X, 0x%X%X", sliced[1], sliced[2], sliced[3]);
         break;
         case(0xD):

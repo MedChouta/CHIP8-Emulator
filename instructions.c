@@ -41,7 +41,6 @@ void Jump(CHIP8 *c8, uint16_t data[], uint16_t offset, int mode){
     uint8_t x = data[X_D];
     uint8_t y = data[Y_D];
 
-
     switch(mode){
         case JP_1:
             c8->PC = (uint16_t)(data[ADDRESS] + offset);
@@ -49,31 +48,40 @@ void Jump(CHIP8 *c8, uint16_t data[], uint16_t offset, int mode){
         case JP_3:
             if (c8->V[x] == data[VALUE])
                 c8->PC+=4;
+            else
+                c8->PC+=2;
         break;
         case JP_4:
             if (c8->V[x] != data[VALUE])
                 c8->PC+=4;
+            else
+                c8->PC+=2;
         break;
         case JP_5:
             if(c8->V[x] == c8->V[y])
                 c8->PC+=4;
+            else
+                c8->PC+=2;
         break;
         case JP_9:
             if(c8->V[x] != c8->V[y])
                 c8->PC+=4;
+            else
+                c8->PC+=2;
         break;
         case SUBROUTINE:
-            push(data[ADDRESS], c8->stack);
+            push(c8, data[ADDRESS]);
             c8->PC = data[ADDRESS];
         break;
     }
-
 }
 
 
 void Return(CHIP8 *c8){
-    uint16_t rtrn = pop(c8->stack);
-    c8->PC = rtrn;
+    uint16_t rtrn = pop(c8);
+    if (c8->stack[0] != 0){
+        c8->PC = rtrn;
+    }
 }
 
 void Set(CHIP8 *c8, uint16_t data[], int mode){
