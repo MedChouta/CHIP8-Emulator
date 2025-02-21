@@ -43,3 +43,10 @@ gcc main.c chip8.c instructions.c -g -lm -lSDL2 -pthread -o run
 - `disas`: Disassembles and displays the instructions.
 - `delay`: Sets the delay between instructions.
 - `exit`: Exits the debugger.
+
+## Work in Progress
+The emulator is mostly complete, but there are still a few improvements to be made:
+- Adding support for more CHIP-8 instructions.
+- Enhancing debugging capabilities for a better user experience.
+- Improving performance and accuracy of instruction execution.
+
