@@ -14,8 +14,6 @@ This project is a CHIP-8 emulator written in C, with a built-in debugger and gra
 
 ## Screenshots
 
-Here are some screenshots of the emulator running:
-
 ![Screenshot 1](chip-ss1.png)
 
 ![Screenshot 2](chip-ss2.png)
